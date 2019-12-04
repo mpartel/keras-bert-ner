@@ -18,7 +18,8 @@ app = Flask(__name__)
 @app.route('/')
 def tag():
     text = request.values['text']
-    return app.tagger.tag(text)
+    tokenized = request.values.get('tokenized') in ('1', 'True', 'true')
+    return app.tagger.tag(text, tokenized)
 
 
 class Tagger(object):
@@ -30,10 +31,13 @@ class Tagger(object):
         self.session = None
         self.graph = None
 
-    def tag(self, text):
+    def tag(self, text, tokenized=False):
         max_seq_len = self.config['max_seq_length']
         inv_label_map = { i: l for i, l in enumerate(self.labels) }
-        words = tokenize(text)
+        if tokenized:
+            words = text.split()    # whitespace tokenization
+        else:
+            words = tokenize(text)    # approximate BasicTokenizer
         dummy = ['O'] * len(words)
         data = process_sentences([words], [dummy], self.tokenizer, max_seq_len)
         x = encode(data.combined_tokens, self.tokenizer, max_seq_len)
