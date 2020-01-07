@@ -1,0 +1,3 @@
+# Directory for Slurm logs, ignore everything here except this file
+*
+!.gitignore
