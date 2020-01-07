@@ -12,6 +12,9 @@ from common import encode, write_result
 from common import argument_parser
 
 
+DEFAULT_MODEL_DIR = 'ner-model'
+
+
 app = Flask(__name__)
 
 
@@ -89,6 +92,8 @@ def tokenize(text):
 def main(argv):
     argparser = argument_parser('serve')
     args = argparser.parse_args(argv[1:])
+    if args.ner_model_dir is None:
+        args.ner_model_dir = DEFAULT_MODEL_DIR
     app.tagger = Tagger.load(args.ner_model_dir)
     app.run(port=8080)
     return 0
