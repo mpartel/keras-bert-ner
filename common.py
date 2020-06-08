@@ -240,10 +240,15 @@ def read_tags(path):
 
 
 def tokenize_and_split(words, word_labels, tokenizer, max_length):
+    unk_token = tokenizer.wordpiece_tokenizer.unk_token
     # Tokenize each word in sentence, propagate labels
     tokens, labels, lengths = [], [], []
     for word, label in zip(words, word_labels):
         tokenized = tokenizer.tokenize(word)
+        if len(tokenized) == 0:
+            print('word "{}" tokenized to {}, replacing with {}'.format(
+                word, tokenized, unk_token), file=sys.stderr)
+            tokenized = [unk_token]    # to avoid desync
         tokens.extend(tokenized)
         lengths.append(len(tokenized))
         for i, token in enumerate(tokenized):
@@ -384,9 +389,15 @@ def write_result(fname, original, token_lengths, tokens, labels, predictions, mo
         lengths = deque(token_lengths)
         for sentence in original:
             for word in sentence:
+                tok = toks.popleft()
+                # TODO avoid hardcoded "[UNK]" string
+                if not (word.startswith(tok) or tok == '[UNK]'):
+                    print('tokenization mismatch: "{}" vs "{}"'.format(
+                        word, tok), file=sys.stderr)
                 label = labs.popleft()
                 predicted = pred.popleft()
                 for i in range(int(lengths.popleft())-1):
+                    toks.popleft()
                     labs.popleft()
                     pred.popleft()                           
                 if mode != 'predict':
