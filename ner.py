@@ -1,5 +1,4 @@
 import os
-
 import sys
 
 import numpy as np
@@ -9,7 +8,7 @@ from common import encode, label_encode, write_result
 from common import load_pretrained
 from common import create_ner_model, create_optimizer, argument_parser
 from common import read_conll, process_sentences, get_labels
-from common import save_ner_model
+from common import save_ner_model, save_viterbi_probabilities
 
 
 def main(argv):
@@ -27,6 +26,8 @@ def main(argv):
     label_list = get_labels(train_data.labels)
     tag_map = { l: i for i, l in enumerate(label_list) }
     inv_tag_map = { v: k for k, v in tag_map.items() }
+
+    init_prob, trans_prob = viterbi_probabilities(train_data.labels, tag_map)
 
     train_x = encode(train_data.combined_tokens, tokenizer, seq_len)
     test_x = encode(test_data.combined_tokens, tokenizer, seq_len)
@@ -57,13 +58,14 @@ def main(argv):
     if args.ner_model_dir is not None:
         label_list = [v for k, v in sorted(list(inv_tag_map.items()))]
         save_ner_model(ner_model, tokenizer, label_list, args)
+        save_viterbi_probabilities(init_prob, trans_prob, inv_tag_map, args)
 
     probs = ner_model.predict(test_x, batch_size=args.batch_size)
     preds = np.argmax(probs, axis=-1)
 
     pred_tags = []
     for i, pred in enumerate(preds):
-        pred_tags.append([inv_tag_map[t] 
+        pred_tags.append([inv_tag_map[t]
                           for t in pred[1:len(test_data.tokens[i])+1]])
 
     lines = write_result(

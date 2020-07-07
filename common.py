@@ -159,24 +159,42 @@ def load_ner_model(ner_model_dir):
     return model, tokenizer, labels, config
 
 
-def _label_dict_to_array(label_dict, label_map):
-    """Map values in dict keyed by labels to numpy array in label_map order.
+def save_viterbi_probabilities(init_prob, trans_prob, inv_tag_map, options):
+    os.makedirs(options.ner_model_dir, exist_ok=True)
+    # Map numpy arrays to dictionaries
+    init_prob = { inv_tag_map[i]: v for i, v in enumerate(init_prob) }
+    trans_prob = {
+        inv_tag_map[i]: { inv_tag_map[j]: v for j, v in enumerate(p) }
+        for i, p in enumerate(trans_prob)
+    }
+    probs = {
+        'initial': init_prob,
+        'transition': trans_prob,
+    }
+    with open(_ner_viterbi_path(options.ner_model_dir), 'w') as f:
+        json.dump(config, out, indent=4)
+
+
+def _label_dict_to_array(label_dict, tag_map):
+    """Map values in dict keyed by labels to numpy array in tag_map order.
     >>> _label_dict_to_array({'O': 0.3, 'B': 0.7 }, { 'O': 0, 'B': 1 })
     array([0.3, 0.7])
     """
-    idx_dict = { label_map[k]: v for k, v in label_dict.items() }
+    idx_dict = { tag_map[k]: v for k, v in label_dict.items() }
     return np.array([v for k, v in sorted(idx_dict.items())])
 
 
-def load_viterbi_probabilities(ner_model_dir, label_map):
+def load_viterbi_probabilities(ner_model_dir, tag_map):
     with open(_ner_viterbi_path(ner_model_dir)) as f:
         probs = json.load(f)
     init_prob, trans_prob = probs['initial'], probs['transition']
-    init_prob = _label_dict_to_array(init_prob, label_map)
+
+    # Map dictionaries to numpy arrays
+    init_prob = _label_dict_to_array(init_prob, tag_map)
     trans_prob = {
-        k: _label_dict_to_array(v, label_map) for k, v in trans_prob.items()
+        k: _label_dict_to_array(v, tag_map) for k, v in trans_prob.items()
     }
-    trans_prob = _label_dict_to_array(trans_prob, label_map)
+    trans_prob = _label_dict_to_array(trans_prob, tag_map)
     return init_prob, trans_prob
 
 
@@ -412,6 +430,7 @@ def read_data(input_file, tokenizer, max_seq_length):
 
 def write_result(fname, original, token_lengths, tokens, labels, predictions,
                  mode='train'):
+    lines = []
     with open(fname, 'w+') as f:
         toks = deque([val for sublist in tokens for val in sublist])
         labs = deque([val for sublist in labels for val in sublist])
@@ -436,8 +455,10 @@ def write_result(fname, original, token_lengths, tokens, labels, predictions,
                     # In predict mode, labels are just placeholder dummies
                     line = '{}\t{}\n'.format(word, predicted)
                 f.write(line)
+                lines.append(line)
             f.write('\n')
     f.close()
+    return lines
 
 
 # Include maximum number of consecutive sentences to each sample
@@ -476,18 +497,18 @@ def pairwise(iterable):
     return zip(a, b)
 
 
-def viterbi_probabilities(sentence_labels, label_map, lambda_=0.0):
+def viterbi_probabilities(sentence_labels, tag_map, lambda_=0.0):
     # Return initial state probabilities and transition probabilities
     # estimated from given list of lists of labels.
     # TODO consider non-zero default lambda
-    num_labels = len(label_map)
+    num_labels = len(tag_map)
     init_count = np.zeros(num_labels) + lambda_
     trans_count = np.zeros((num_labels, num_labels)) + lambda_
 
     for labels in sentence_labels:
-        init_count[label_map[labels[0]]] += 1
+        init_count[tag_map[labels[0]]] += 1
         for prev, curr in pairwise(labels):
-            trans_count[label_map[prev],label_map[curr]] += 1
+            trans_count[tag_map[prev],tag_map[curr]] += 1
 
     init_prob = init_count / np.sum(init_count)
     trans_prob = []
