@@ -4,6 +4,7 @@ import json
 import numpy as np
 import conlleval
 
+from itertools import tee
 from collections import deque, namedtuple
 from argparse import ArgumentParser
 
@@ -19,7 +20,7 @@ from config import DEFAULT_LR, DEFAULT_WARMUP_PROPORTION
 
 
 Sentences = namedtuple('Sentences', [
-    'words', 'tokens', 'labels', 'lengths', 
+    'words', 'tokens', 'labels', 'lengths',
     'combined_tokens', 'combined_labels'
 ])
 
@@ -56,7 +57,7 @@ def argument_parser(mode='train'):
             help='Lower case input text (for uncased models)'
         )
         argparser.add_argument(
-        '--learning_rate', type=float, default=DEFAULT_LR,
+            '--learning_rate', type=float, default=DEFAULT_LR,
             help='Initial learning rate'
         )
         argparser.add_argument(
@@ -83,6 +84,10 @@ def argument_parser(mode='train'):
     argparser.add_argument(
         '--ner_model_dir', default=None,
         help='Trained NER model directory'
+    )
+    argparser.add_argument(
+        '--viterbi', default=False, action='store_true',
+        help='Viterbi decoding when predicting'
     )
     return argparser
 
@@ -118,6 +123,10 @@ def _ner_config_path(ner_model_dir):
     return os.path.join(ner_model_dir, 'config.json')
 
 
+def _ner_viterbi_path(ner_model_dir):
+    return os.path.join(ner_model_dir, 'probs.json')
+
+
 def save_ner_model(ner_model, tokenizer, labels, options):
     os.makedirs(options.ner_model_dir, exist_ok=True)
     config = {
@@ -148,6 +157,27 @@ def load_ner_model(ner_model_dir):
     )
     labels = read_labels(_ner_labels_path(ner_model_dir))
     return model, tokenizer, labels, config
+
+
+def _label_dict_to_array(label_dict, label_map):
+    """Map values in dict keyed by labels to numpy array in label_map order.
+    >>> _label_dict_to_array({'O': 0.3, 'B': 0.7 }, { 'O': 0, 'B': 1 })
+    array([0.3, 0.7])
+    """
+    idx_dict = { label_map[k]: v for k, v in label_dict.items() }
+    return np.array([v for k, v in sorted(idx_dict.items())])
+
+
+def load_viterbi_probabilities(ner_model_dir, label_map):
+    with open(_ner_viterbi_path(ner_model_dir)) as f:
+        probs = json.load(f)
+    init_prob, trans_prob = probs['initial'], probs['transition']
+    init_prob = _label_dict_to_array(init_prob, label_map)
+    trans_prob = {
+        k: _label_dict_to_array(v, label_map) for k, v in trans_prob.items()
+    }
+    trans_prob = _label_dict_to_array(trans_prob, label_map)
+    return init_prob, trans_prob
 
 
 def read_labels(path):
@@ -246,8 +276,8 @@ def tokenize_and_split(words, word_labels, tokenizer, max_length):
     for word, label in zip(words, word_labels):
         tokenized = tokenizer.tokenize(word)
         if len(tokenized) == 0:
-            print('word "{}" tokenized to {}, replacing with {}'.format(
-                word, tokenized, unk_token), file=sys.stderr)
+            print('word "{}" tokenized to {} in {}, replacing with {}'.format(
+                word, tokenized, words, unk_token), file=sys.stderr)
             tokenized = [unk_token]    # to avoid desync
         tokens.extend(tokenized)
         lengths.append(len(tokenized))
@@ -302,7 +332,7 @@ def read_sentences(input_file):
     if words:
         sentences.append(words)
     return sentences
-    
+
 
 def read_conll(input_file, mode='train'):
     # words and labels are lists of lists, outer for sentences and
@@ -380,9 +410,9 @@ def read_data(input_file, tokenizer, max_seq_length):
     return lines, tags, lengths
 
 
-def write_result(fname, original, token_lengths, tokens, labels, predictions, mode='train'):
-    lines=[]
-    with open(fname,'w+') as f:
+def write_result(fname, original, token_lengths, tokens, labels, predictions,
+                 mode='train'):
+    with open(fname, 'w+') as f:
         toks = deque([val for sublist in tokens for val in sublist])
         labs = deque([val for sublist in labels for val in sublist])
         pred = deque([val for sublist in predictions for val in sublist])
@@ -390,7 +420,7 @@ def write_result(fname, original, token_lengths, tokens, labels, predictions, mo
         for sentence in original:
             for word in sentence:
                 tok = toks.popleft()
-                # TODO avoid hardcoded "[UNK]" string
+                # TODO avoid hardcoded '[UNK]' string
                 if not (word.startswith(tok) or tok == '[UNK]'):
                     print('tokenization mismatch: "{}" vs "{}"'.format(
                         word, tok), file=sys.stderr)
@@ -399,17 +429,15 @@ def write_result(fname, original, token_lengths, tokens, labels, predictions, mo
                 for i in range(int(lengths.popleft())-1):
                     toks.popleft()
                     labs.popleft()
-                    pred.popleft()                           
+                    pred.popleft()
                 if mode != 'predict':
-                    line = "{}\t{}\t{}\n".format(word, label, predicted)
+                    line = '{}\t{}\t{}\n'.format(word, label, predicted)
                 else:
                     # In predict mode, labels are just placeholder dummies
-                    line = "{}\t{}\n".format(word, predicted)
+                    line = '{}\t{}\n'.format(word, predicted)
                 f.write(line)
-                lines.append(line)
-            f.write("\n")
+            f.write('\n')
     f.close()
-    return lines
 
 
 # Include maximum number of consecutive sentences to each sample
@@ -417,7 +445,7 @@ def combine_sentences(lines, tags, lengths, max_seq):
     lines_in_sample = []
     new_lines = []
     new_tags = []
-    
+
     for i, line in enumerate(lines):
         line_numbers = [i]
         new_line = []
@@ -438,3 +466,66 @@ def combine_sentences(lines, tags, lengths, max_seq):
         new_tags.append(new_tag)
         lines_in_sample.append(line_numbers)
     return new_lines, new_tags, lines_in_sample
+
+
+def pairwise(iterable):
+    # from https://docs.python.org/3/library/itertools.html
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
+def viterbi_probabilities(sentence_labels, label_map, lambda_=0.0):
+    # Return initial state probabilities and transition probabilities
+    # estimated from given list of lists of labels.
+    # TODO consider non-zero default lambda
+    num_labels = len(label_map)
+    init_count = np.zeros(num_labels) + lambda_
+    trans_count = np.zeros((num_labels, num_labels)) + lambda_
+
+    for labels in sentence_labels:
+        init_count[label_map[labels[0]]] += 1
+        for prev, curr in pairwise(labels):
+            trans_count[label_map[prev],label_map[curr]] += 1
+
+    init_prob = init_count / np.sum(init_count)
+    trans_prob = []
+    for l_count in trans_count:
+        total = np.sum(l_count)
+        if total:
+            l_prob = l_count/total
+        else:
+            # TODO warn?
+            l_prob = np.ones(num_labels)/num_labels
+        trans_prob.append(l_prob)
+    trans_prob = np.array(trans_prob)
+
+    return init_prob, trans_prob
+
+
+def viterbi_path(init_prob, trans_prob, cond_prob):
+    # Calculate viterbi path for given initial, transition, and conditional
+    # probabilities. Operates in log-space to avoid underflow.
+    init_prob = np.log(init_prob)
+    trans_prob = np.log(trans_prob)
+    cond_prob = np.log(cond_prob)
+
+    seq_length, num_states = cond_prob.shape
+    prob = np.zeros((seq_length, num_states))
+    prev = np.zeros((seq_length, num_states), dtype=int)
+
+    for s in range(num_states):
+        prob[0,s] = init_prob[s] + cond_prob[0,s]
+
+    for t in range(1, seq_length):
+        for s in range(num_states):
+            p_probs = prob[t-1,:] + trans_prob[:,s]
+            p = np.argmax(p_probs)
+            prob[t,s] = p_probs[p] + cond_prob[t,s]
+            prev[t,s] = p
+
+    path = [np.argmax(prob[seq_length-1,:])]
+    for t in reversed(range(seq_length-1)):
+        path.append(prev[t+1,path[-1]])
+    return list(reversed(path))
