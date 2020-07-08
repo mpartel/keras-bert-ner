@@ -171,8 +171,8 @@ def save_viterbi_probabilities(init_prob, trans_prob, inv_tag_map, options):
         'initial': init_prob,
         'transition': trans_prob,
     }
-    with open(_ner_viterbi_path(options.ner_model_dir), 'w') as f:
-        json.dump(config, out, indent=4)
+    with open(_ner_viterbi_path(options.ner_model_dir), 'w') as out:
+        json.dump(probs, out, indent=4)
 
 
 def _label_dict_to_array(label_dict, tag_map):
