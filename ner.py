@@ -5,7 +5,7 @@ import numpy as np
 import conlleval
 
 from common import encode, label_encode, write_result
-from common import load_pretrained
+from common import load_pretrained, viterbi_probabilities
 from common import create_ner_model, create_optimizer, argument_parser
 from common import read_conll, process_sentences, get_labels
 from common import save_ner_model, save_viterbi_probabilities
