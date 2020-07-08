@@ -43,6 +43,14 @@ Run an experiment on FiNER news data
 python compare.py data/finer-news/test.tsv finer-news-predictions.tsv 
 ```
 
+Experiment on Turku NER corpus data
+
+```
+./scripts/run-turku-ner.sh
+./scripts/predict-turku-ner.sh
+python compare.py data/turku-ner/test.tsv turku-ner-predictions.tsv 
+```
+
 If in a Slurm environment, edit `scripts/slurm-run.sh` to match your setup and run
 
 ```
@@ -51,4 +59,12 @@ sbatch scripts/slurm-run.sh scripts/predict-finer-news.sh
 python compare.py data/finer-news/test.tsv finer-news-predictions.tsv
 ```
 
-(the first job must finish before running the second.)
+and
+
+```
+sbatch scripts/slurm-run.sh scripts/run-turku-ner.sh
+sbatch scripts/slurm-run.sh scripts/predict-turku-ner.sh
+python compare.py data/turku-ner/test.tsv turku-ner-predictions.tsv 
+```
+
+(the first jobs must finish before running the second ones.)

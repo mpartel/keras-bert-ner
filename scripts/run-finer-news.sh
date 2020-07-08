@@ -10,7 +10,7 @@ set -euo pipefail
 datadir="$SCRIPTDIR/../data/finer-news"
 train_data="$datadir/train.tsv"
 test_data="$datadir/test.tsv"
-ner_model_dir="$SCRIPTDIR/../finer-news-model"
+ner_model_dir="$SCRIPTDIR/../ner-models/finer-news-model"
 
 modeldir="$SCRIPTDIR/../models/bert-base-finnish-cased-v1"
 model="$modeldir/bert_model.ckpt"
@@ -31,6 +31,9 @@ if [ ! -e "$modeldir" ]; then
     echo "Model not found (run scripts/get-models.sh?)" >&2
     exit 1
 fi
+
+rm -rf "$ner_model_dir"
+mkdir -p "$ner_model_dir"
 
 python "$SCRIPTDIR/../ner.py" \
     --vocab_file "$vocab" \
