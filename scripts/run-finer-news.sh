@@ -9,7 +9,7 @@ set -euo pipefail
 
 datadir="$SCRIPTDIR/../data/finer-news"
 train_data="$datadir/train.tsv"
-test_data="$datadir/test.tsv"
+test_data="$datadir/dev.tsv"
 ner_model_dir="$SCRIPTDIR/../ner-models/finer-news-model"
 
 modeldir="$SCRIPTDIR/../models/bert-base-finnish-cased-v1"

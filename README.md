@@ -51,7 +51,17 @@ Experiment on Turku NER corpus data
 python compare.py data/turku-ner/test.tsv turku-ner-predictions.tsv 
 ```
 
-If in a Slurm environment, edit `scripts/slurm-run.sh` to match your setup and run
+If in a Slurm environment, edit `scripts/slurm-run.sh` to match your setup and create virtual environment, e.g.
+
+```
+module purge
+module load tensorflow
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+then run
 
 ```
 sbatch scripts/slurm-run.sh scripts/run-finer-news.sh
