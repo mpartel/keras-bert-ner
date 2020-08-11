@@ -78,3 +78,10 @@ python compare.py data/turku-ner/test.tsv turku-ner-predictions.tsv
 ```
 
 (the first jobs must finish before running the second ones.)
+
+For parameter selection in a Slurm environment, try
+
+```
+./slurm/run-parameter-grid.sh 
+python3 slurm/select_params.py logs/*.out
+```
