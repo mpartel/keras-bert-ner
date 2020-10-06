@@ -95,7 +95,7 @@ def main(argv):
     if args.ner_model_dir is None:
         args.ner_model_dir = DEFAULT_MODEL_DIR
     app.tagger = Tagger.load(args.ner_model_dir)
-    app.run(port=8080)
+    app.run(port=args.port)
     return 0
 
 

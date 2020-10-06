@@ -73,6 +73,11 @@ def argument_parser(mode='train'):
             '--test_data', required=True,
             help='Test data'
         )
+    if mode == 'serve':
+        argparser.add_argument(
+            '--port', default=8080,
+            help='Port to listen to'
+        )
     argparser.add_argument(
         '--batch_size', type=int, default=DEFAULT_BATCH_SIZE,
         help='Batch size for training'

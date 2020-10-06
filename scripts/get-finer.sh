@@ -32,7 +32,7 @@ else
 	# consecutive and file-initial empty lines
 	cut -f 1,2 "$finerdir/data/"digitoday.*.$s.csv \
 	    | egrep -v '^<(HEADLINE|INGRESS|BODY)>' \
-	    | perl -pe 's/^\s*$/\n/' | cat -s | sed '1{/^$/d}' \
+	    | perl -pe 's/^\s*$/\n/' | cat -s | gsed '1{/^$/d}' \
 	    > "$newsdir/$s.tsv"
     done
 fi
@@ -50,6 +50,6 @@ else
     # Same as above 
     cut -f 1,2 "$finerdir/data/wikipedia.test.csv" \
 	| egrep -v '^<(HEADLINE|INGRESS|BODY)>' \
-	| perl -pe 's/^\s*$/\n/' | cat -s | sed '1{/^$/d}' \
+	| perl -pe 's/^\s*$/\n/' | cat -s | gsed '1{/^$/d}' \
 	> "$wikidir/test.tsv"
 fi

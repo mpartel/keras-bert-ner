@@ -35,7 +35,7 @@ fi
 rm -rf "$ner_model_dir"
 mkdir -p "$ner_model_dir"
 
-python "$SCRIPTDIR/../ner.py" \
+python3 "$SCRIPTDIR/../ner.py" \
     --vocab_file "$vocab" \
     --bert_config_file "$config" \
     --init_checkpoint "$model" \
