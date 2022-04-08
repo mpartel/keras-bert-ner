@@ -38,16 +38,26 @@ def main(argv):
     probs = ner_model.predict(test_x, batch_size=args.batch_size)
 
     pred_labels = []
+    label_probs = []
     if not args.viterbi:
         preds = np.argmax(probs, axis=-1)
-        for i, pred in enumerate(preds):
+        for i, (pred, prob) in enumerate(zip(preds, probs)):
             pred_labels.append([inv_label_map[t] for t in
                                 pred[1:len(test_data.tokens[i])+1]])
+            label_probs.append([prob[i+1][t] for i, t in
+                                enumerate(pred[1:len(test_data.tokens[i])+1])])
     else:
         for i, prob in enumerate(probs):
             cond_prob = prob[1:len(test_data.tokens[i])+1]
             path = viterbi_path(init_prob, trans_prob, cond_prob)
             pred_labels.append([inv_label_map[i] for i in path])
+            label_probs.append(['TODO' for i in path])    # not implemented
+
+    if args.probabilities:
+        pred_labels = [
+            [f'{l}\t{p:.3f}' for l, p in zip(ls, ps)]
+            for ls, ps in zip(pred_labels, label_probs)
+        ]
 
     write_result(
         args.output_file, test_data.words, test_data.lengths,

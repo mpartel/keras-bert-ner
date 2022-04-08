@@ -68,6 +68,11 @@ def argument_parser(mode='train'):
             '--warmup_proportion', type=float, default=DEFAULT_WARMUP_PROPORTION,
             help='Proportion of training to perform LR warmup for'
         )
+    if mode == 'predict':
+        argparser.add_argument(
+            '--probabilities', default=False, action='store_true',
+            help='Include label probabilities in output'
+        )
     if mode != 'serve':
         argparser.add_argument(
             '--test_data', required=True,
