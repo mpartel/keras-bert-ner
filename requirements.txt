@@ -1,1 +1,4 @@
-keras-bert
+keras-bert==0.89.0
+tensorflow==1.15.5
+protobuf==3.20.1
+flask==2.2.2
