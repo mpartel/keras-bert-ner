@@ -83,6 +83,10 @@ def argument_parser(mode='train'):
             '--port', default=8080,
             help='Port to listen to'
         )
+        argparser.add_argument(
+            '--host', default='127.0.0.1',
+            help='Address to listen on'
+        )
     argparser.add_argument(
         '--batch_size', type=int, default=DEFAULT_BATCH_SIZE,
         help='Batch size for training'
