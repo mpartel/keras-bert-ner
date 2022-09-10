@@ -18,10 +18,11 @@ DEFAULT_MODEL_DIR = 'ner-model'
 app = Flask(__name__)
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def tag():
-    text = request.values['text']
-    tokenized = request.values.get('tokenized') in ('1', 'True', 'true')
+    data = request.get_json() if request.method == 'POST' else request.values
+    text = data['text']
+    tokenized = data.get('tokenized') in ('1', 'True', 'true')
     return app.tagger.tag(text, tokenized)
 
 
