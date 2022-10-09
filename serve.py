@@ -4,6 +4,8 @@ from threading import Thread
 import unicodedata
 
 from flask import Flask, request
+import waitress
+import logging
 
 import numpy as np
 import tensorflow as tf
@@ -143,7 +145,8 @@ def main(argv):
     print("Loading model...")
     app.tagger_thread.ping()
     print("Model loaded. Starting server.")
-    app.run(host=args.host, port=args.port)
+    logging.getLogger('waitress').setLevel(logging.INFO)
+    waitress.serve(app, host=args.host, port=int(args.port), threads=2)
     return 0
 
 
